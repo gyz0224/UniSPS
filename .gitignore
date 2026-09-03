@@ -31,24 +31,19 @@ dist/
 /dataset/
 *.flist
 
-# Model weights: keep only the three pretrained weights at the root of weights/
-*.pth
-*.pt
-*.ckpt
-*.onnx
-/weights/*
-!/weights/lolv1.pth
-!/weights/lolv2real.pth
-!/weights/sice.pth
-
-# Training and evaluation artifacts: keep only each stage's latest checkpoint
-/runs/**
-!/runs/**/
-!/runs/**/latest.pth
+# Training, evaluation, and TensorBoard output
+/runs/*
+!/runs/pretrained_native_comparison.md
 /checkpoints/
 /results/
 /logs/
 events.out.tfevents*
+
+# Model weights
+*.pth
+*.pt
+*.ckpt
+*.onnx
 
 # Editors and operating systems
 .idea/
