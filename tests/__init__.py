@@ -1,0 +1,1 @@
+"""SPS-Netpro acceptance tests."""

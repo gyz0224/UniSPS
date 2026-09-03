@@ -1,0 +1,68 @@
+stage: 3
+seed: 10
+device: cuda:0
+
+# D4+ RESIDE-unpaired archive: 3,577 clean and 2,902 hazy images.
+# Run `python scripts/validate_real_dataset.py` before Stage 3.
+clean_flist: dataset/real/clear
+hazy_flist: dataset/real/hazy
+clean_mask_dir: dataset/real/masks/clear
+hazy_mask_dir: dataset/real/masks/hazy
+test_gt_flist: null
+is_real: true
+augment: true
+crop_size: 256
+batch_size: 2
+num_workers: 4
+iteration_length: 100000
+max_iterations: 100000
+
+stage_channels: [64, 96, 128]
+blocks_per_stage: [1, 1, 2]
+decoder_blocks: 1
+shared_channels: 64
+num_heads: 1
+ffn_expansion_factor: 2.66
+layer_norm_type: WithBias
+bias: false
+use_semantics: true
+atmosphere_mode: dcp
+dcp_window: 15
+dcp_top_percent: 0.001
+dcp_omega: 0.95
+
+beta_min: 0.010
+beta_max: 0.035
+depth_min: 20.0
+depth_max: 350.0
+transmission_min: 0.05
+transmission_max: 0.95
+cycle: 1.0
+gan: 0.2
+scattering: 1.0
+contrast: 0.0001
+semantic: 0.05
+use_dcp_pseudo_depth: true
+use_sky_mask: true
+enable_contrast: true
+enable_semantic: true
+
+dehaze_lr: 0.00005
+depth_lr: 0.00005
+discriminator_lr: 0.000005
+shared_lr: 0.000001
+weight_decay: 0.0
+grad_clip: 20.0
+depth_channels: [32, 64, 96]
+refine_channels: 32
+residual_scale: 0.1
+discriminator_channels: 64
+discriminator_layers: 3
+
+# train_dehaze.py derives the Stage 2 initializer and Stage 3 output directory
+# from --experiment, while creating fresh Stage 3 optimizers.
+pretrained_sps: null
+initial_checkpoint: null
+output_dir: null
+log_interval: 10
+save_interval: 2000

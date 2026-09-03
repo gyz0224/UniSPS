@@ -1,0 +1,68 @@
+# Stage 1 warm-up: override with --stage 1 --max-iterations 10000.
+# Stage 2 indoor training is the default below.
+stage: 2
+seed: 10
+device: cuda:0
+
+# Training data only. Never point these at SOTS/test GT.
+clean_flist: dataset/ITS/gt
+hazy_flist: dataset/ITS/hazy
+test_gt_flist: null
+is_real: false
+augment: true
+crop_size: 256
+batch_size: 2
+num_workers: 4
+iteration_length: 150000
+max_iterations: 150000
+
+# SPS dehaze head.
+stage_channels: [64, 96, 128]
+blocks_per_stage: [1, 1, 2]
+decoder_blocks: 1
+shared_channels: 64
+num_heads: 1
+ffn_expansion_factor: 2.66
+layer_norm_type: WithBias
+bias: false
+use_semantics: true
+atmosphere_mode: max
+dcp_window: 15
+dcp_top_percent: 0.001
+dcp_omega: 0.95
+
+# Indoor physics and losses.
+beta_min: 0.6
+beta_max: 1.8
+depth_min: 0.2
+depth_max: 5.0
+transmission_min: 0.05
+transmission_max: 0.95
+cycle: 1.0
+gan: 0.2
+scattering: 1.0
+contrast: 0.0001
+semantic: 0.05
+use_dcp_pseudo_depth: false
+enable_contrast: true
+enable_semantic: true
+
+# Optimizers and training-only modules.
+dehaze_lr: 0.0001
+depth_lr: 0.0001
+discriminator_lr: 0.00001
+shared_lr: 0.000001
+weight_decay: 0.0
+grad_clip: 20.0
+depth_channels: [32, 64, 96]
+refine_channels: 32
+residual_scale: 0.1
+discriminator_channels: 64
+discriminator_layers: 3
+
+pretrained_sps: null
+initial_checkpoint: null
+# train_dehaze.py derives initializer and output_dir from --experiment.
+output_dir: null
+log_interval: 10
+save_interval: 2000

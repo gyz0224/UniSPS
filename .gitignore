@@ -1,0 +1,54 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments and local environment variables
+.venv/
+venv/
+env/
+ENV/
+.env
+.env.*
+!.env.example
+
+# Packaging and build output
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Datasets and generated file lists
+/dataset/
+*.flist
+
+# Training, evaluation, and TensorBoard output
+/runs/*
+!/runs/pretrained_native_comparison.md
+/checkpoints/
+/results/
+/logs/
+events.out.tfevents*
+
+# Model weights
+*.pth
+*.pt
+*.ckpt
+*.onnx
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

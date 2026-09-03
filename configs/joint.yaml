@@ -1,0 +1,101 @@
+stage: 4
+seed: 10
+device: cuda:0
+max_iterations: 100000
+
+# Stage 4 task schedule. Set lowlight_steps_per_cycle=2 if retention degrades.
+lowlight_steps_per_cycle: 1
+dehaze_steps_per_cycle: 1
+real_dehaze_probability: 0.7
+lambda_retain: 0.1
+# train_joint.py derives native retention data from --experiment.
+lowlight_data: null
+lowlight_batch_size: 1
+lowlight_num_workers: 0
+# train_joint.py derives teacher, Stage 3 initializer, and output directory
+# from --experiment.
+teacher_checkpoint: null
+pretrained_sps: null
+initial_checkpoint: null
+
+# Shared head topology; physics switches per dehaze source batch.
+stage_channels: [64, 96, 128]
+blocks_per_stage: [1, 1, 2]
+decoder_blocks: 1
+shared_channels: 64
+num_heads: 1
+ffn_expansion_factor: 2.66
+layer_norm_type: WithBias
+bias: false
+use_semantics: true
+dcp_window: 15
+dcp_top_percent: 0.001
+dcp_omega: 0.95
+
+cycle: 1.0
+gan: 0.2
+scattering: 1.0
+contrast: 0.0001
+semantic: 0.05
+enable_contrast: true
+enable_semantic: true
+transmission_min: 0.05
+transmission_max: 0.95
+
+shared_lr: 0.000001
+lowlight_lr: 0.000005
+dehaze_lr: 0.00005
+depth_lr: 0.00005
+discriminator_lr: 0.000005
+weight_decay: 0.0
+grad_clip: 20.0
+depth_channels: [32, 64, 96]
+refine_channels: 32
+residual_scale: 0.1
+discriminator_channels: 64
+discriminator_layers: 3
+
+indoor:
+  clean_flist: dataset/ITS/gt
+  hazy_flist: dataset/ITS/hazy
+  test_gt_flist: null
+  is_real: false
+  augment: true
+  crop_size: 256
+  batch_size: 2
+  num_workers: 4
+  iteration_length: 100000
+  atmosphere_mode: max
+  beta_min: 0.6
+  beta_max: 1.8
+  depth_min: 0.2
+  depth_max: 5.0
+  transmission_min: 0.05
+  transmission_max: 0.95
+  use_dcp_pseudo_depth: false
+
+real:
+  # Validated D4+ RESIDE-unpaired data and sky masks.
+  clean_flist: dataset/real/clear
+  hazy_flist: dataset/real/hazy
+  clean_mask_dir: dataset/real/masks/clear
+  hazy_mask_dir: dataset/real/masks/hazy
+  test_gt_flist: null
+  is_real: true
+  augment: true
+  crop_size: 256
+  batch_size: 2
+  num_workers: 4
+  iteration_length: 100000
+  atmosphere_mode: dcp
+  beta_min: 0.010
+  beta_max: 0.035
+  depth_min: 20.0
+  depth_max: 350.0
+  transmission_min: 0.05
+  transmission_max: 0.95
+  use_dcp_pseudo_depth: true
+
+output_dir: null
+log_interval: 100
+save_interval: 2000
