@@ -8,7 +8,6 @@ from PIL import Image
 
 from datasets.dehaze import UnpairedDehazeDataset, validate_real_dataset_layout
 from scripts.flist import build_flist, write_flist
-from training.runtime import make_dehaze_loader
 
 
 class UnpairedDatasetTest(unittest.TestCase):
@@ -94,44 +93,6 @@ class UnpairedDatasetTest(unittest.TestCase):
                 crop_size=8,
                 test_gt_source=[next(self.clean.glob("*.png"))],
             )
-
-    def test_multiworker_batches_use_independent_random_streams(self):
-        for index in range(32):
-            image = np.full((8, 8, 3), index, dtype=np.uint8)
-            Image.fromarray(image).save(self.clean / f"worker_clean_{index}.png")
-            Image.fromarray(image).save(self.hazy / f"worker_hazy_{index}.png")
-
-        config = {
-            "clean_flist": self.clean,
-            "hazy_flist": self.hazy,
-            "crop_size": 8,
-            "iteration_length": 16,
-            "augment": False,
-            "seed": 10,
-            "batch_size": 4,
-            "num_workers": 4,
-        }
-
-        def collect_signatures():
-            signatures = []
-            for batch in make_dehaze_loader(config, return_paths=True):
-                signatures.append(
-                    tuple(
-                        tuple(Path(path).name for path in batch[key])
-                        for key in (
-                            "clean_path",
-                            "hazy_path",
-                            "clean_ref_path",
-                            "hazy_ref_path",
-                        )
-                    )
-                )
-            return signatures
-
-        signatures = collect_signatures()
-        self.assertEqual(len(signatures), 4)
-        self.assertEqual(len(set(signatures)), len(signatures))
-        self.assertEqual(collect_signatures(), signatures)
 
     def test_real_layout_validation_checks_pair_counts_and_dimensions(self):
         counts = validate_real_dataset_layout(

@@ -79,6 +79,10 @@ def make_dehaze_loader(values: Mapping[str, Any], return_paths: bool = True) -> 
         raise ValueError(
             f"Dataset length {len(dataset)} is smaller than batch_size {batch_size}"
         )
+    generator = None
+    if values.get("seed") is not None:
+        generator = torch.Generator()
+        generator.manual_seed(int(values["seed"]))
     return DataLoader(
         dataset,
         batch_size=batch_size,
@@ -86,6 +90,7 @@ def make_dehaze_loader(values: Mapping[str, Any], return_paths: bool = True) -> 
         shuffle=False,
         drop_last=True,
         pin_memory=bool(values.get("pin_memory", torch.cuda.is_available())),
+        generator=generator,
     )
 
 

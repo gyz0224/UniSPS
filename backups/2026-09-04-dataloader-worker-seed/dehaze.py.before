@@ -194,7 +194,6 @@ class UnpairedDehazeDataset(data.Dataset):
         self.augment = bool(augment)
         self.return_paths = bool(return_paths)
         self._rng = random.Random(seed) if seed is not None else random
-        self._worker_seed: Optional[int] = None
         self.clean_mask_dir = (
             Path(clean_mask_dir).expanduser().resolve() if clean_mask_dir else None
         )
@@ -227,14 +226,6 @@ class UnpairedDehazeDataset(data.Dataset):
 
     def _sample_index(self, paths: Sequence[Path]) -> int:
         return self._rng.randrange(len(paths))
-
-    def _ensure_worker_rng(self) -> None:
-        """Give every DataLoader worker an independent deterministic RNG stream."""
-        worker = data.get_worker_info()
-        if worker is None or self._worker_seed == worker.seed:
-            return
-        self._rng = random.Random(worker.seed)
-        self._worker_seed = worker.seed
 
     @staticmethod
     def _load_rgb(path: Path) -> Image.Image:
@@ -293,7 +284,6 @@ class UnpairedDehazeDataset(data.Dataset):
 
     def __getitem__(self, index):
         del index
-        self._ensure_worker_rng()
         # Match D4+: all four unpaired-domain samples are drawn independently.
         clean_index = self._sample_index(self.clean_paths)
         hazy_index = self._sample_index(self.hazy_paths)
