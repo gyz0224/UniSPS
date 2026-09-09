@@ -1,4 +1,4 @@
-# SPS-Netpro 源码模块功能参考
+# UniSPS 源码模块功能参考
 
 本文档描述重组后的每个维护中 Python 模块。可执行命令的逐项参数和输出另见 [scripts/README.md](scripts/README.md)。
 

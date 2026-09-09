@@ -1,4 +1,4 @@
-"""Losses used by the SPS-Netpro training entrypoints."""
+"""Losses used by the UniSPS training entrypoints."""
 
 from .dehaze_loss import (
     DehazeLossWeights,

@@ -1,6 +1,6 @@
 # 可执行脚本功能索引
 
-本目录逐一说明 SPS-Netpro 的所有可执行 Python 入口。所有入口统一采用：
+本目录逐一说明 UniSPS 的所有可执行 Python 入口。所有入口统一采用：
 
 ```python
 build_parser()

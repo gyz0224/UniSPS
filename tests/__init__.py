@@ -1,1 +1,1 @@
-"""SPS-Netpro acceptance tests."""
+"""UniSPS acceptance tests."""

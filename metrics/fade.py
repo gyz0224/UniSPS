@@ -1,6 +1,6 @@
 """Fog Aware Density Evaluator (FADE), ported from the LIVE MATLAB release.
 
-Python port for SPS-Netpro. The algorithm and embedded reference-model assets
+Python port for UniSPS. The algorithm and embedded reference-model assets
 come from the FADE 1.0 software release. The implementation deliberately keeps
 the original 8-bit input, 8x8 patch, feature-order, and aggregation semantics.
 
