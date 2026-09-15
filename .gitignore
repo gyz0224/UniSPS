@@ -54,3 +54,5 @@ events.out.tfevents*
 Thumbs.db
 
 tools/
+
+.planning/
