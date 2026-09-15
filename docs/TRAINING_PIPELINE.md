@@ -183,6 +183,8 @@ runs/<experiment>/metrics/dehaze/<预设名>.json
 
 `pretrained` 测初始低光权重，`stage4` 测联合训练后的最终权重。两者都在
 当前实验的原生测试集上计算 PSNR、SSIM、LPIPS 和 NIQE（NIQE 越低越好）。
+这些论文基准默认关闭精确零值替换，以保持与原始表格一致；只有 VisDrone、
+DroneVehicle 等曾出现黑斑的目标域推理才传入 `--sanitize-zeros`。
 
 | experiment | 输入 | GT | 样本与配对 |
 |---|---|---|---|

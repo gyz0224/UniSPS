@@ -51,6 +51,7 @@ class LowlightInferenceSpec:
     data_test: Path
     model: Path
     output: Path
+    sanitize_zeros: bool
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -82,6 +83,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--output-folder",
         dest="output_folder",
         help="override the canonical output directory",
+    )
+    parser.add_argument(
+        "--sanitize-zeros",
+        action="store_true",
+        help=(
+            "replace exact-zero input channels with 1/255; enable for "
+            "VisDrone/DroneVehicle artifact prevention, but leave disabled "
+            "for LOLv1/LOLv2/SICE paper benchmarks"
+        ),
     )
     return parser
 
@@ -115,6 +125,7 @@ def resolve_inference(args: argparse.Namespace) -> LowlightInferenceSpec:
         data_test=Path(args.data_test) if args.data_test else dataset.test_input,
         model=model,
         output=output,
+        sanitize_zeros=args.sanitize_zeros,
     )
 
 
@@ -150,16 +161,20 @@ def save_feature_grid(
 
 
 def prepare_lowlight_input(
-    input_image: torch.Tensor, max_dimension: int = 1024
+    input_image: torch.Tensor,
+    max_dimension: int = 1024,
+    *,
+    sanitize_zeros: bool = False,
 ) -> torch.Tensor:
-    """Sanitize zero-valued pixels, then apply the evaluation size policy.
+    """Optionally sanitize zero channels, then apply the size policy.
 
     Exact zero channel values carry no usable low-light signal and can create
-    black artifacts in the Retinex division.  Replace uint8-equivalent zeros
-    with 1/255 before any resize so every evaluation and dataset-generation
-    entry point uses the same safe input convention.
+    black artifacts in the Retinex division on some target-domain images.
+    Paper benchmarks retain their original zeros by default; target-domain
+    callers can explicitly replace them with 1/255 before resizing.
     """
-    input_image = input_image.masked_fill(input_image == 0, 1.0 / 255.0)
+    if sanitize_zeros:
+        input_image = input_image.masked_fill(input_image == 0, 1.0 / 255.0)
     _, _, height, width = input_image.shape
     new_height = height - (height % 2)
     new_width = width - (width % 2)
@@ -179,10 +194,16 @@ def prepare_lowlight_input(
 
 
 def evaluate_lowlight_features(
-    model: torch.nn.Module, input_image: torch.Tensor
+    model: torch.nn.Module,
+    input_image: torch.Tensor,
+    *,
+    sanitize_zeros: bool = False,
 ) -> Dict[str, object]:
     """Return final low-light tensors and visualization-only intermediates."""
-    input_image = prepare_lowlight_input(input_image)
+    input_image = prepare_lowlight_input(
+        input_image,
+        sanitize_zeros=sanitize_zeros,
+    )
     semantic_features = model.extract_semantics(input_image)
     mask1, mask2 = generate_mask_pair(input_image)
     image1 = generate_subimages(input_image, mask1)
@@ -249,7 +270,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         f"checkpoint={spec.model}"
     )
     print(
-        f"===> Loading dataset: {spec.dataset_name} input={spec.data_test}"
+        f"===> Loading dataset: {spec.dataset_name} input={spec.data_test} "
+        f"sanitize_zeros={spec.sanitize_zeros}"
     )
     test_set = get_eval_set(str(spec.data_test))
     loader = DataLoader(
@@ -271,7 +293,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         for batch in loader:
             input_image, names = batch[0].to(device), batch[1]
             print(names)
-            outputs = evaluate_lowlight_features(model, input_image)
+            outputs = evaluate_lowlight_features(
+                model,
+                input_image,
+                sanitize_zeros=spec.sanitize_zeros,
+            )
             save_feature_outputs(outputs, output, names[0])
     return 0
 

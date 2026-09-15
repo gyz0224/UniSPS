@@ -9,6 +9,45 @@ from PIL import Image
 
 
 class LowlightMetricsTest(unittest.TestCase):
+    def test_lowlight_zero_sanitization_is_opt_in(self):
+        import torch
+
+        from eval_lowlight import prepare_lowlight_input
+
+        image = torch.tensor(
+            [
+                [
+                    [[0.0, 1.0 / 255.0], [0.5, 1.0]],
+                    [[0.0, 0.25], [0.75, 1.0]],
+                    [[0.0, 0.1], [0.2, 0.3]],
+                ]
+            ]
+        )
+
+        benchmark = prepare_lowlight_input(image.clone())
+        target_domain = prepare_lowlight_input(
+            image.clone(), sanitize_zeros=True
+        )
+
+        self.assertEqual(benchmark[0, 0, 0, 0].item(), 0.0)
+        self.assertAlmostEqual(target_domain[0, 0, 0, 0].item(), 1.0 / 255.0)
+        self.assertAlmostEqual(target_domain[0, 0, 0, 1].item(), 1.0 / 255.0)
+        torch.testing.assert_close(
+            target_domain[image != 0],
+            image[image != 0],
+        )
+
+    def test_lowlight_cli_defaults_to_paper_benchmark_and_can_opt_in(self):
+        from eval_lowlight import parse_args, resolve_inference
+
+        benchmark = resolve_inference(parse_args(["--experiment", "lolv1"]))
+        target_domain = resolve_inference(
+            parse_args(["--experiment", "lolv1", "--sanitize-zeros"])
+        )
+
+        self.assertFalse(benchmark.sanitize_zeros)
+        self.assertTrue(target_domain.sanitize_zeros)
+
     def test_niqe_receives_zero_to_one_rgb_tensor(self):
         import torch
 
