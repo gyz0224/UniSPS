@@ -152,7 +152,14 @@ def save_feature_grid(
 def prepare_lowlight_input(
     input_image: torch.Tensor, max_dimension: int = 1024
 ) -> torch.Tensor:
-    """Apply the original even-crop and max-dimension evaluation policy."""
+    """Sanitize zero-valued pixels, then apply the evaluation size policy.
+
+    Exact zero channel values carry no usable low-light signal and can create
+    black artifacts in the Retinex division.  Replace uint8-equivalent zeros
+    with 1/255 before any resize so every evaluation and dataset-generation
+    entry point uses the same safe input convention.
+    """
+    input_image = input_image.masked_fill(input_image == 0, 1.0 / 255.0)
     _, _, height, width = input_image.shape
     new_height = height - (height % 2)
     new_width = width - (width % 2)

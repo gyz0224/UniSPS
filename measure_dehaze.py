@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compute paired metrics, optional LPIPS, or no-reference FADE."""
+"""Compute paired metrics including LPIPS, or no-reference FADE."""
 
 import argparse
 import json
@@ -86,7 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--lpips-device",
         help=(
-            "LPIPS device for HSTS Synthetic; default: CUDA when available, "
+            "LPIPS device for paired datasets; default: CUDA when available, "
             "otherwise CPU"
         ),
     )
@@ -114,7 +114,7 @@ def resolve_evaluation(args: argparse.Namespace) -> EvaluationSpec:
         reference=reference,
         pairing=args.pairing or preset.pairing,
         mode="fade" if reference is None else "full-reference",
-        lpips=preset.lpips and reference is not None,
+        lpips=reference is not None,
         metrics_output=args.metrics_output or layout.dehaze_metrics(args.stage),
     )
 

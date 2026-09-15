@@ -1,0 +1,71 @@
+# Progress
+
+## 2026-09-09
+- Started an isolated checkpoint-selection workflow in the UniSPS repository.
+- Recorded the explicit boundary: compare and select only; do not batch-generate the enhanced dataset.
+- Located exactly six distinct `latest.pth` files and inspected their checkpoint metadata/configurations.
+- Adopted the user's constraint that historical logs and objective metrics may be incomplete; fresh equal-condition evaluation will determine the ranking.
+- Inspected the native low-light inference/metric pipeline and experiment path resolver.
+- Selected the complete 131-image Dark-v3 validation split as the target-domain evaluation set; the test split remains untouched.
+- Confirmed all six candidates are architecture-compatible, finite, distinct models.
+- Confirmed local full-reference benchmark pairs and cached no-reference IQA assets are available for a fresh comparison.
+- Probed no-reference IQA execution: NIQE works; BRISQUE needs its existing cached checkpoint passed explicitly because automatic download failed TLS verification.
+- Finalized a target-domain-first, rank-aggregation evaluation design with full-reference and visual corroboration.
+- Ran a first real Stage-4 inference successfully; NIQE scored the enhanced result. BRISQUE's locally cached weight proved API-incompatible and was recorded for replacement/targeted diagnosis.
+- Resolved BRISQUE offline execution using the original-model constants from the installed implementation; confirmed MUSIQ and all intended enhancement weights load correctly.
+- Added `tools/select_stage4_checkpoint.py`, which evaluates candidates in memory, writes metric reports, and retains only a six-image validation preview panel rather than generating an enhanced dataset.
+- Added periodic per-dataset progress output so long comparisons remain observable.
+- The six-candidate 1-image-per-dataset smoke comparison completed successfully and wrote a valid report/contact sheet. Removed two avoidable Pillow/NumPy warnings before the full run.
+- Visually inspected the smoke-test contact sheet and confirmed that image ordering, labels, dimensions, and candidate outputs are valid before starting the full comparison.
+- Completed the initial six-candidate full comparison, then marked its metrics as superseded after the user identified zero-input black artifacts in `0000111_03678_d_0000072.jpg`.
+- Centralized the required zero-to-one input sanitization in `eval_lowlight.prepare_lowlight_input`, so both checkpoint selection and later full dataset generation inherit the rule.
+- The first tiny preprocessing assertion was invalid because its synthetic 1-pixel height is removed by the existing even-crop rule; recorded this and switched the check to a valid 2×2 tensor.
+- Passed the valid zero-to-one preprocessing assertion and measured the named image's exact-zero prevalence.
+- Re-ran the first eight validation records with all six checkpoints, visually checked the corrected comparison, copied the six corrected outputs for `0000111_03678_d_0000072.jpg` over the original preview files, and rebuilt the full contact sheet.
+- Re-ran the entire six-candidate comparison after zero sanitization: 131 Dark-v3 val images plus 15 LOLv1, 100 LOLv2-Real, and 150 SICE paired samples per checkpoint.
+- Inspected the corrected full contact sheet and the selected candidate's full-resolution named preview; the severe black spotting is gone.
+- Selected `runs2/lolv1/checkpoints/stage4_joint/latest.pth` from fresh target-domain evidence. Historical logs were not used to fill missing results or determine the rank.
+- Verified both changed Python files compile successfully and confirmed the final report/checkpoint artifacts are present.
+- User chose the SICE Stage-4 checkpoint for full dataset generation because of its stronger overexposure control. Added generation, validation, and handoff phases; planned output is `/home/xhx/GY/model/dataset/VisDrone2019-Dark-v3-UniSPS-SICE`.
+- Inventoried the source dataset: 1,178 train, 131 val, and 605 test images (1,914 total), with matching per-image labels and three COCO annotation JSONs. Confirmed the destination does not exist and available disk space is sufficient.
+- Added `tools/generate_enhanced_dataset.py`: a resumable, atomic-output generator that loads only the chosen SICE checkpoint, applies shared zero sanitization, restores original dimensions, saves high-quality JPEGs, copies annotations/metadata, and writes a provenance manifest.
+- Compiled the generator successfully and completed a three-image smoke run (one image per split) with the exact SICE Stage-4 checkpoint; all three images generated without errors.
+- Validated output dimensions/modes and byte-identical metadata, verified resumability, and visually inspected the smoke output. Generation preparation is complete; starting the full 1,914-image run.
+- Completed the full SICE generation run successfully: 1,178 train, 131 val, and 605 test images (1,914 total) at an average 4.61 images/s. Wrote the final provenance manifest and encountered no inference/decode errors.
+- Independently decoded all 1,914 outputs and verified exact name/dimension correspondence plus byte-identical annotations/metadata. Visually inspected representative train, val (including the prior zero-heavy image), and test outputs; all passed.
+- Attempted a DETR loader smoke test using the UniSPS `ICLR` environment; it is blocked only by that environment lacking `pycocotools`, not by a dataset error. Logged the dependency issue and began checking for an existing DETR-ready environment.
+- Confirmed the generated dataset loads successfully through DETR in the existing `o2` environment. The user then explicitly authorized installing `pycocotools` into ICLR, so the same loader test will be repeated in the intended environment.
+- Installed `pycocotools==2.0.11` in ICLR and passed the DETR train/val/test loader smoke test there. Dataset generation, integrity validation, visual inspection, and downstream-loader validation are complete.
+
+## 2026-09-10
+- Started a new six-checkpoint selection workflow for DroneVehicle-night. The active DETR training process is explicitly protected; no full enhanced DroneVehicle dataset will be generated before the user chooses a weight.
+- Confirmed the user-stopped DETR process no longer occupies the GPU and verified its resumable checkpoint through completed epoch 91.
+- Confirmed the DroneVehicle-night official validation split has 868 images and 15,214 annotations; test data will not be used for checkpoint selection.
+- Extended and compiled the existing equal-condition selector for DroneVehicle's official validation layout without changing the VisDrone path.
+- Validated every official validation image and annotation, measured exact-zero prevalence, and characterized input luminance for deterministic preview selection.
+- Identified DroneVehicle's 100-pixel white padding and recorded the user's mandatory crop-before-test rule; adapting inference and object-box scoring before checkpoint evaluation.
+- Audited all train/val/test TXT and COCO annotations and proved their object ordering, categories, and bbox geometry match exactly, enabling synchronized conversion.
+- User confirmed the stopped training frees the GPU for the later six-checkpoint evaluation; cropping itself remains CPU-based.
+- Implemented the resumable cropped-dataset generator with lossless PNG output, synchronized TXT/COCO transformations, atomic file writes, and a manifest.
+- Compiled the generator and passed an all-annotation geometry preflight with no degenerate or out-of-range polygons.
+- Passed and visually inspected a real-image lossless crop smoke test before starting full generation.
+- Generated the full cropped train/val/test derivative (17,238 images) and synchronized both annotation formats in 75.26 seconds.
+- Passed independent exhaustive pixel and annotation validation across all 17,238 images and 323,344 objects; output occupies 9.0 GiB.
+- Passed downstream DETR loader/transform smoke tests on cropped train, val, and test splits. Crop-normalized dataset generation is complete; proceeding to GPU checkpoint comparison.
+- Completed the six-candidate GPU smoke comparison on the cropped target dataset; inspecting finite metrics and aligned previews before the full 868-image run.
+- Verified all smoke metrics are finite and visually confirmed aligned border-free inputs/outputs. Full official-validation comparison is ready to start.
+- Completed the full six-checkpoint GPU comparison on all 868 cropped official validation images; proceeding with report integrity checks, metric analysis, and qualitative review.
+- Parsed all finite target metrics and inspected the seven-level luminance contact sheet. `runs2/lolv2real_amp` leads NIQE/BRISQUE; `runs1/sice` leads MUSIQ and overexposure control. Performing final full-resolution visual checks before recommendation.
+- Completed full-resolution dark/bright visual checks and final report integrity validation. The cropped dataset and six-weight comparison are complete; no full enhanced DroneVehicle dataset has been generated, pending the user's choice.
+- User selected `runs2/lolv2real/checkpoints/stage4_joint/latest.pth` for full DroneVehicle enhancement. Started preparation for a new lossless cropped enhanced derivative without overwriting source data.
+- Verified the exact selected checkpoint hash, empty destination, idle GPU, complete cropped source manifest, and 48 GiB free space.
+- Generalized the resumable generator to support DroneVehicle's `image/{split}_img` layout while preserving its VisDrone behavior and avoiding accidental source-image copying.
+- Compiled and layout-tested the generalized generator, then completed a one-image-per-split GPU smoke generation with the exact selected checkpoint.
+- Independently validated the smoke output and metadata, matched the val result to the prior checkpoint-comparison output, and visually inspected all three generated images.
+- Estimated full enhanced image storage at roughly 10–14.3 GiB from matched PNG samples; capacity and idle-GPU checks pass for full generation.
+- Started the 17,238-image full GPU generation. At the first recorded milestone, 5,000 train images were complete at 6.31 images/s with no inference or write errors.
+- Full generation reached 10,000/17,238 images at 6.30 images/s with no retries, invalid outputs, or skipped files.
+- Full generation passed 15,000/17,238 images at 6.30 images/s; train and val were complete and test generation remained error-free.
+- Completed all 17,238 enhanced images: train 10,357, val 868, test 6,013, in 2,735.48 seconds with no errors, skips, or resumptions. Began independent integrity validation.
+- Passed exhaustive image/name/dimension/change and byte-identical metadata validation, then passed DETR loader/transform checks on five distributed samples from each split.
+- Visually inspected dark/median/bright full outputs, matched all seven fixed previews to the selected checkpoint's prior outputs, reverified checkpoint hash and generator compilation, and completed the final manifest/handoff.

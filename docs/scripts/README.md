@@ -25,7 +25,7 @@ Stage 1–4、低光/去雾推理和指标入口必须传
 | `train_lowlight.py` | 配对参考指标低光训练主入口 | [train_lowlight.md](train_lowlight.md) |
 | `train_lowlight_unpaired.py` | NIQE/BRISQUE/MUSIQ 低光训练入口 | [train_lowlight_unpaired.md](train_lowlight_unpaired.md) |
 | `eval_lowlight.py` | 低光结果与中间特征导出入口 | [eval_lowlight.md](eval_lowlight.md) |
-| `measure.py` | PSNR/SSIM/LPIPS 目录评估 | [measure.md](measure.md) |
+| `measure.py` | PSNR/SSIM/LPIPS/NIQE 低光目录评估 | [measure.md](measure.md) |
 
 ## 去雾与工具脚本
 
@@ -34,7 +34,7 @@ Stage 1–4、低光/去雾推理和指标入口必须传
 | `train_dehaze.py` | Stage 1–3 无配对去雾训练 | [train_dehaze.md](train_dehaze.md) |
 | `train_joint.py` | Stage 4 低光/去雾联合训练 | [train_joint.md](train_joint.md) |
 | `eval_dehaze.py` | 支持原分辨率重叠分块的部署去雾推理 | [eval_dehaze.md](eval_dehaze.md) |
-| `measure_dehaze.py` | Stage 2/3/4 的 SOTS、HSTS、I-HAZE paired/LPIPS/FADE 与 RTTS FADE | [measure_dehaze.md](measure_dehaze.md) |
+| `measure_dehaze.py` | Stage 2/3/4 的 SOTS、HSTS、I-HAZE paired（含 LPIPS）与真实集 FADE | [measure_dehaze.md](measure_dehaze.md) |
 | `scripts/flist.py` | 递归生成确定性图像列表 | [flist.md](flist.md) |
 | `scripts/validate_real_dataset.py` | 校验真实室外图像与天空 mask | [validate_real_dataset.md](validate_real_dataset.md) |
 | `tools/model_info.py` | 模型参数量统计 | [model_info.md](model_info.md) |

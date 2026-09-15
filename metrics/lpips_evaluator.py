@@ -1,4 +1,4 @@
-"""Directory-level PSNR/SSIM/LPIPS evaluation used by ``measure.py``."""
+"""Directory-level full-reference and NIQE evaluation used by ``measure.py``."""
 
 import glob
 from pathlib import Path
@@ -24,6 +24,19 @@ def build_lpips_model(
     except ImportError as exc:
         raise RuntimeError("LPIPS evaluation requires the lpips package") from exc
     model = lpips.LPIPS(net="alex").to(torch.device(device))
+    model.eval()
+    return model
+
+
+def build_niqe_model(
+    device: Union[str, torch.device],
+) -> torch.nn.Module:
+    """Build the shared pyiqa NIQE evaluator on the requested device."""
+    try:
+        import pyiqa
+    except ImportError as exc:
+        raise RuntimeError("NIQE evaluation requires the pyiqa package") from exc
+    model = pyiqa.create_metric("niqe", device=torch.device(device))
     model.eval()
     return model
 
@@ -54,6 +67,27 @@ def calculate_lpips(
     with torch.no_grad():
         score = model.forward(tensor(second), tensor(first))
     return float(score.mean().item())
+
+
+def calculate_niqe(
+    prediction: np.ndarray,
+    model: torch.nn.Module,
+    device: Union[str, torch.device],
+) -> float:
+    """Calculate NIQE for one uint8 RGB prediction at its native size."""
+    image = np.asarray(prediction)
+    if image.ndim != 3 or image.shape[2] != 3:
+        raise ValueError("NIQE expects an RGB image with three channels.")
+    if image.dtype != np.uint8:
+        raise ValueError("NIQE expects a uint8 RGB image in [0,255].")
+    tensor = torch.from_numpy(np.ascontiguousarray(image))
+    tensor = tensor.permute(2, 0, 1).unsqueeze(0)
+    tensor = tensor.to(torch.device(device), dtype=torch.float32).div(255.0)
+    with torch.no_grad():
+        score = float(model(tensor).mean().item())
+    if not np.isfinite(score):
+        raise ValueError("NIQE produced a non-finite score.")
+    return score
 
 
 def resolve_image_files(source: Union[str, Sequence[str]]) -> list[str]:
@@ -125,21 +159,24 @@ def resolve_lowlight_reference(
     return matches[0]
 
 
-def evaluate_lpips_directory(
+def _evaluate_lowlight_directory(
     image_source: Union[str, Sequence[str]],
     label_dir: Union[str, Path],
     device: Union[str, torch.device],
     pairing: str = "same-name",
-):
-    """Return average PSNR, SSIM, and LPIPS for enhanced images."""
+    *,
+    include_niqe: bool,
+) -> dict[str, float]:
     device = torch.device(device)
     loss_fn = build_lpips_model(device)
-    totals = {"psnr": 0.0, "ssim": 0.0, "lpips": 0.0}
+    niqe_model = build_niqe_model(device) if include_niqe else None
+    totals = {"psnr": 0.0, "ssim": 0.0, "lpips": 0.0, "niqe": 0.0}
     files = resolve_image_files(image_source)
     reference_index = _reference_index(label_dir) if pairing == "sice" else None
     for item in files:
         with Image.open(item) as image:
             prediction_image = image.convert("RGB")
+        native_prediction = np.array(prediction_image, dtype=np.uint8)
         reference_path = resolve_lowlight_reference(
             item,
             label_dir,
@@ -164,13 +201,56 @@ def evaluate_lpips_directory(
             loss_fn,
             device,
         )
+        if niqe_model is not None:
+            totals["niqe"] += calculate_niqe(
+                native_prediction,
+                niqe_model,
+                device,
+            )
     count = len(files)
-    return tuple(totals[name] / count for name in ("psnr", "ssim", "lpips"))
+    return {name: value / count for name, value in totals.items()}
+
+
+def evaluate_lpips_directory(
+    image_source: Union[str, Sequence[str]],
+    label_dir: Union[str, Path],
+    device: Union[str, torch.device],
+    pairing: str = "same-name",
+):
+    """Return average PSNR, SSIM, and LPIPS for enhanced images."""
+    values = _evaluate_lowlight_directory(
+        image_source,
+        label_dir,
+        device,
+        pairing,
+        include_niqe=False,
+    )
+    return tuple(values[name] for name in ("psnr", "ssim", "lpips"))
+
+
+def evaluate_lowlight_directory(
+    image_source: Union[str, Sequence[str]],
+    label_dir: Union[str, Path],
+    device: Union[str, torch.device],
+    pairing: str = "same-name",
+):
+    """Return average PSNR, SSIM, LPIPS, and NIQE for paired low-light data."""
+    values = _evaluate_lowlight_directory(
+        image_source,
+        label_dir,
+        device,
+        pairing,
+        include_niqe=True,
+    )
+    return tuple(values[name] for name in ("psnr", "ssim", "lpips", "niqe"))
 
 
 __all__ = [
     "build_lpips_model",
+    "build_niqe_model",
     "calculate_lpips",
+    "calculate_niqe",
+    "evaluate_lowlight_directory",
     "evaluate_lpips_directory",
     "resolve_image_files",
     "resolve_lowlight_reference",

@@ -13,7 +13,7 @@ train_*.py / eval_*.py
         ├── training/  训练步骤、运行时、采样、checkpoint
         ├── datasets/  数据集与 loader factory
         ├── loss/      低光和去雾损失
-        ├── metrics/   PSNR/SSIM/LPIPS/CIEDE2000/FADE
+        ├── metrics/   PSNR/SSIM/LPIPS/NIQE/CIEDE2000/FADE
         └── net/       blocks → task subnet → top-level model
 ```
 
@@ -71,9 +71,9 @@ train_*.py / eval_*.py
 | 文件 | 功能与主要接口 |
 |---|---|
 | `metrics/image_quality.py` | 单一来源的 `ssim/calculate_ssim/calculate_psnr`。 |
-| `metrics/lpips_evaluator.py` | 共享 AlexNet LPIPS 模型、同尺寸 RGB 图对计算，以及增强图目录 PSNR/SSIM/LPIPS 平均。 |
+| `metrics/lpips_evaluator.py` | 共享 AlexNet LPIPS 与 NIQE 模型，以及增强图目录 PSNR/SSIM/LPIPS/NIQE 平均。 |
 | `metrics/fade.py` | LIVE FADE 1.0 的本地 Python 移植；内嵌官方 500/500 图像训练的参考模型，提供单张 8-bit RGB 图像的无参考雾密度分数和可选密度图。 |
-| `metrics/dehaze_evaluator.py` | SOTS/HSTS/I-HAZE 严格配对，PSNR/SSIM/CIEDE2000、HSTS 可选 LPIPS，以及无 GT 目录的 FADE 平均。 |
+| `metrics/dehaze_evaluator.py` | SOTS/HSTS/I-HAZE 严格配对，PSNR/SSIM/CIEDE2000/LPIPS，以及无 GT 目录的 FADE 平均。 |
 | `metrics/__init__.py` | 指标包公共导出。 |
 | `image_utils.py` | PIL RGB/灰度图水平拼接。 |
 
@@ -84,7 +84,7 @@ train_*.py / eval_*.py
 | `train_lowlight.py` | 配对参考低光训练 | [scripts/train_lowlight.md](scripts/train_lowlight.md) |
 | `train_lowlight_unpaired.py` | 无参考 IQA 低光训练 | [scripts/train_lowlight_unpaired.md](scripts/train_lowlight_unpaired.md) |
 | `eval_lowlight.py` | 低光输出/特征评估 | [scripts/eval_lowlight.md](scripts/eval_lowlight.md) |
-| `measure.py` | PSNR/SSIM/LPIPS 测量 | [scripts/measure.md](scripts/measure.md) |
+| `measure.py` | PSNR/SSIM/LPIPS/NIQE 测量 | [scripts/measure.md](scripts/measure.md) |
 | `measure_dehaze.py` | SOTS、HSTS、I-HAZE 去雾全参考/LPIPS 与 HSTS/RTTS FADE 测量 | [scripts/measure_dehaze.md](scripts/measure_dehaze.md) |
 | `train_dehaze.py` | Stage 1–3 去雾训练 | [scripts/train_dehaze.md](scripts/train_dehaze.md) |
 | `train_joint.py` | Stage 4 联合训练 | [scripts/train_joint.md](scripts/train_joint.md) |
@@ -101,6 +101,7 @@ train_*.py / eval_*.py
 | `tests/test_lowlight_backward_compat.py` | 默认/显式低光一致及 legacy state keys。 |
 | `tests/test_organization.py` | package 公共导出、规范入口 import safety、实验路径隔离、Stage 4 teacher、CLI 预设、重叠分块融合、CPU sampling/loss、低光完整更新。 |
 | `tests/test_dehaze_metrics.py` | CIEDE2000、LPIPS 归一化、FADE 回归、数据集配对、尺寸检查和 paired/FADE 分流。 |
+| `tests/test_lowlight_metrics.py` | NIQE 归一化、原生尺寸计算和低光指标 JSON 输出。 |
 | `tests/test_dehaze_forward.py` | 去雾 shape/range/finite、DCP/max、部署边界、受限 refiner。 |
 | `tests/test_unpaired_dataset.py` | D4+ 独立随机采样、mask、GT 污染拒绝、真实数据布局校验。 |
 | `tests/test_optimizer_param_groups.py` | stage freeze 与 optimizer 参数互斥。 |

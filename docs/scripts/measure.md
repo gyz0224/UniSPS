@@ -2,7 +2,7 @@
 
 ## 功能
 
-测量低光结果的 PSNR、SSIM 和 AlexNet LPIPS，并把结果保存为实验专属 JSON。
+测量有监督低光结果的 PSNR、SSIM、AlexNet LPIPS 和 NIQE，并把结果保存为实验专属 JSON。
 
 ```bash
 python measure.py \
@@ -32,5 +32,6 @@ runs/sice/metrics/lowlight/stage4.json
 ```
 
 `--im_dir`、`--label_dir`、`--pairing {same-name,sice}` 和
-`--metrics-output` 可覆盖默认值。预测会缩放到 GT 尺寸后计算三项指标；
+`--metrics-output` 可覆盖默认值。PSNR、SSIM、LPIPS 会在预测缩放到 GT 尺寸后计算；
+无参考 NIQE 直接使用预测结果的原始输出尺寸计算，且越低越好。
 图片 glob 同时支持 PNG/JPG/JPEG/BMP，输入为空或 GT 缺失会立即报错。

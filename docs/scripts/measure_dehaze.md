@@ -4,8 +4,7 @@
 
 测量一个实验的去雾结果，并保存 JSON：
 
-- paired 数据：PSNR、SSIM、CIEDE2000；
-- HSTS Synthetic：再增加 AlexNet LPIPS；
+- paired 数据（SOTS Indoor/Outdoor、HSTS Synthetic、I-HAZE）：PSNR、SSIM、CIEDE2000 和 AlexNet LPIPS；
 - HSTS Real-world 和 RTTS：无参考 FADE。
 
 ```bash
@@ -39,10 +38,9 @@ python measure_dehaze.py \
 - `--experiment`、`--stage`：必填；
 - `--prediction`、`--reference`、`--pairing`：覆盖预设；
 - `--metrics-output`：覆盖 JSON 路径；
-- `--lpips-device`：HSTS Synthetic LPIPS 设备；
+- `--lpips-device`：paired 数据集的 LPIPS 设备；
 - `--workers`：仅 FADE 的图片级 CPU 并行；
 - `--print-every`：进度间隔。
 
 预测和 GT 不会自动缩放，尺寸不一致会报错。FADE 越低表示感知残雾越少，但仍需
 结合视觉质量和下游检测，避免把过度增强误判为更好。
-

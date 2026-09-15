@@ -182,7 +182,7 @@ runs/<experiment>/metrics/dehaze/<预设名>.json
 ## 4. 原生低光测试集：低光能力
 
 `pretrained` 测初始低光权重，`stage4` 测联合训练后的最终权重。两者都在
-当前实验的原生测试集上计算 PSNR、SSIM 和 LPIPS。
+当前实验的原生测试集上计算 PSNR、SSIM、LPIPS 和 NIQE（NIQE 越低越好）。
 
 | experiment | 输入 | GT | 样本与配对 |
 |---|---|---|---|
@@ -237,7 +237,7 @@ runs/<experiment>/metrics/lowlight/{pretrained,stage4}.json
 
 ## 5. SOTS Indoor：合成室内去雾
 
-SOTS Indoor 有 clean GT，计算 PSNR、SSIM 和 CIEDE2000。
+SOTS Indoor 有 clean GT，计算 PSNR、SSIM、CIEDE2000 和 LPIPS。
 
 | 预设 | checkpoint | 配置 | 结果目录 |
 |---|---|---|---|
@@ -273,7 +273,7 @@ python measure_dehaze.py --experiment sice --stage stage4
 
 ## 6. SOTS Outdoor：合成室外去雾
 
-SOTS Outdoor 有 clean GT，计算 PSNR、SSIM 和 CIEDE2000。三个预设统一使用
+SOTS Outdoor 有 clean GT，计算 PSNR、SSIM、CIEDE2000 和 LPIPS。三个预设统一使用
 室外大气光配置。
 
 | 预设 | checkpoint | 结果目录 |
@@ -383,7 +383,7 @@ python measure_dehaze.py --experiment sice --stage stage4-hsts-real --workers 4
 
 ## 9. I-HAZE：真实室内去雾
 
-I-HAZE 有 30 对真实雾图和 clean GT，计算 PSNR、SSIM 和 CIEDE2000。三个预设
+I-HAZE 有 30 对真实雾图和 clean GT，计算 PSNR、SSIM、CIEDE2000 和 LPIPS。三个预设
 默认使用 `tile-size=1024`、`tile-overlap=128`。
 
 | 预设 | checkpoint | 配置 | 结果目录 |

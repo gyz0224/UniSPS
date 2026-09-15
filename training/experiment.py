@@ -90,6 +90,7 @@ DEHAZE_PRESETS = {
         input_dir=Path("dataset/eval/SOTS/indoor/hazy"),
         reference_dir=Path("dataset/eval/SOTS/indoor/gt"),
         pairing="sots",
+        lpips=True,
     ),
     "stage2-outdoor": DehazePreset(
         train_stage=2,
@@ -99,6 +100,7 @@ DEHAZE_PRESETS = {
         input_dir=Path("dataset/eval/SOTS/outdoor/hazy"),
         reference_dir=Path("dataset/eval/SOTS/outdoor/gt"),
         pairing="sots-outdoor",
+        lpips=True,
     ),
     "stage2-hsts-synthetic": DehazePreset(
         train_stage=2,
@@ -128,6 +130,7 @@ DEHAZE_PRESETS = {
         input_dir=Path("dataset/eval/I-HAZE/hazy"),
         reference_dir=Path("dataset/eval/I-HAZE/gt"),
         pairing="ihaze",
+        lpips=True,
         tile_size=1024,
     ),
     "stage3": DehazePreset(
@@ -138,6 +141,7 @@ DEHAZE_PRESETS = {
         input_dir=Path("dataset/eval/SOTS/indoor/hazy"),
         reference_dir=Path("dataset/eval/SOTS/indoor/gt"),
         pairing="sots",
+        lpips=True,
     ),
     "stage3-outdoor": DehazePreset(
         train_stage=3,
@@ -147,6 +151,7 @@ DEHAZE_PRESETS = {
         input_dir=Path("dataset/eval/SOTS/outdoor/hazy"),
         reference_dir=Path("dataset/eval/SOTS/outdoor/gt"),
         pairing="sots-outdoor",
+        lpips=True,
     ),
     "stage3-hsts-synthetic": DehazePreset(
         train_stage=3,
@@ -176,6 +181,7 @@ DEHAZE_PRESETS = {
         input_dir=Path("dataset/eval/I-HAZE/hazy"),
         reference_dir=Path("dataset/eval/I-HAZE/gt"),
         pairing="ihaze",
+        lpips=True,
         tile_size=1024,
     ),
     "stage3-real": DehazePreset(
@@ -195,6 +201,7 @@ DEHAZE_PRESETS = {
         input_dir=Path("dataset/eval/SOTS/indoor/hazy"),
         reference_dir=Path("dataset/eval/SOTS/indoor/gt"),
         pairing="sots",
+        lpips=True,
     ),
     "stage4-outdoor": DehazePreset(
         train_stage=4,
@@ -204,6 +211,7 @@ DEHAZE_PRESETS = {
         input_dir=Path("dataset/eval/SOTS/outdoor/hazy"),
         reference_dir=Path("dataset/eval/SOTS/outdoor/gt"),
         pairing="sots-outdoor",
+        lpips=True,
     ),
     "stage4-hsts-synthetic": DehazePreset(
         train_stage=4,
@@ -233,6 +241,7 @@ DEHAZE_PRESETS = {
         input_dir=Path("dataset/eval/I-HAZE/hazy"),
         reference_dir=Path("dataset/eval/I-HAZE/gt"),
         pairing="ihaze",
+        lpips=True,
         tile_size=1024,
     ),
     "stage4-real": DehazePreset(

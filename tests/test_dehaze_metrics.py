@@ -262,6 +262,7 @@ class DehazeMetricsTest(unittest.TestCase):
 
     def test_stage_presets_select_paired_or_fade_metrics(self):
         from measure_dehaze import parse_args, resolve_evaluation
+        from training.experiment import DEHAZE_PRESETS
 
         def resolve(stage, *extra):
             return resolve_evaluation(
@@ -269,6 +270,13 @@ class DehazeMetricsTest(unittest.TestCase):
                     ["--experiment", "lolv1", "--stage", stage, *extra]
                 )
             )
+
+        for stage, preset in DEHAZE_PRESETS.items():
+            with self.subTest(stage=stage, invariant="paired-lpips"):
+                evaluation = resolve(stage)
+                has_reference = preset.reference_dir is not None
+                self.assertEqual(preset.lpips, has_reference)
+                self.assertEqual(evaluation.lpips, has_reference)
 
         stage2 = resolve("stage2")
         self.assertEqual(
@@ -280,6 +288,7 @@ class DehazeMetricsTest(unittest.TestCase):
         )
         self.assertEqual(stage2.pairing, "sots")
         self.assertEqual(stage2.mode, "full-reference")
+        self.assertTrue(stage2.lpips)
 
         outdoor_predictions = {
             "stage2-outdoor": "runs/lolv1/results/dehaze/stage2/sots_outdoor",
@@ -296,6 +305,7 @@ class DehazeMetricsTest(unittest.TestCase):
                 )
                 self.assertEqual(outdoor.pairing, "sots-outdoor")
                 self.assertEqual(outdoor.mode, "full-reference")
+                self.assertTrue(outdoor.lpips)
 
         hsts_predictions = {
             "stage2-hsts-synthetic": (
@@ -348,6 +358,7 @@ class DehazeMetricsTest(unittest.TestCase):
             stage3.reference, Path("dataset/eval/SOTS/indoor/gt")
         )
         self.assertEqual(stage3.pairing, "sots")
+        self.assertTrue(stage3.lpips)
 
         stage3_ihaze = resolve("stage3-ihaze")
         self.assertEqual(
@@ -360,6 +371,7 @@ class DehazeMetricsTest(unittest.TestCase):
         )
         self.assertEqual(stage3_ihaze.pairing, "ihaze")
         self.assertEqual(stage3_ihaze.mode, "full-reference")
+        self.assertTrue(stage3_ihaze.lpips)
 
         stage3_real = resolve("stage3-real")
         self.assertEqual(
@@ -368,6 +380,13 @@ class DehazeMetricsTest(unittest.TestCase):
         )
         self.assertIsNone(stage3_real.reference)
         self.assertEqual(stage3_real.mode, "fade")
+        self.assertFalse(stage3_real.lpips)
+
+        stage3_real_with_reference = resolve(
+            "stage3-real", "--reference", "custom/gt"
+        )
+        self.assertEqual(stage3_real_with_reference.mode, "full-reference")
+        self.assertTrue(stage3_real_with_reference.lpips)
 
         stage3_real_custom = resolve(
             "stage3-real",

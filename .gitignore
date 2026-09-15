@@ -53,11 +53,4 @@ events.out.tfevents*
 .DS_Store
 Thumbs.db
 
-runs1/
-
-
-runs/lolv1/checkpoints/**/latest.pth
-runs/lolv1/checkpoints/stage4_joint/latest.pth
-runs/lolv1/checkpoints/stage3_real/latest.pth
-runs/lolv1/checkpoints/stage1_warmup/latest.pth
-runs/lolv1/checkpoints/stage2_its/latest.pth
+tools/

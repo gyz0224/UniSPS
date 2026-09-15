@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compute PSNR, SSIM, and LPIPS for a directory or image list."""
+"""Compute PSNR, SSIM, LPIPS, and NIQE for paired low-light results."""
 
 import argparse
 import json
@@ -10,7 +10,7 @@ from typing import Optional, Sequence
 import torch
 
 from metrics.image_quality import calculate_psnr, calculate_ssim, ssim
-from metrics.lpips_evaluator import evaluate_lpips_directory, resolve_image_files
+from metrics.lpips_evaluator import evaluate_lowlight_directory, resolve_image_files
 from training.experiment import EXPERIMENT_CHOICES, ExperimentLayout
 
 
@@ -28,7 +28,7 @@ class MeasurementSpec:
 
 def metrics(im_dir, label_dir, device=None, pairing="same-name"):
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-    return evaluate_lpips_directory(
+    return evaluate_lowlight_directory(
         im_dir,
         label_dir,
         device,
@@ -37,7 +37,7 @@ def metrics(im_dir, label_dir, device=None, pairing="same-name"):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Compute PSNR/SSIM/LPIPS")
+    parser = argparse.ArgumentParser(description="Compute PSNR/SSIM/LPIPS/NIQE")
     parser.add_argument(
         "--experiment",
         required=True,
@@ -104,7 +104,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_args(argv)
     spec = resolve_measurement(args)
     samples = len(resolve_image_files(spec.image_source))
-    psnr, ssim_value, lpips_value = metrics(
+    psnr, ssim_value, lpips_value, niqe_value = metrics(
         spec.image_source,
         spec.label_dir,
         args.device,
@@ -113,6 +113,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print(f"===> Avg.PSNR: {psnr:.4f} dB ")
     print(f"===> Avg.SSIM: {ssim_value:.4f} ")
     print(f"===> Avg.LPIPS: {lpips_value:.4f} ")
+    print(f"===> Avg.NIQE: {niqe_value:.4f} ")
     payload = {
         "experiment": spec.experiment,
         "stage": spec.stage,
@@ -125,6 +126,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "psnr_db": psnr,
         "ssim": ssim_value,
         "lpips": lpips_value,
+        "niqe": niqe_value,
     }
     spec.metrics_output.parent.mkdir(parents=True, exist_ok=True)
     spec.metrics_output.write_text(
