@@ -20,6 +20,7 @@ from training.lowlight_sampling import (
     generate_mask_pair,
     generate_subimages,
 )
+from training.precision import TrainingPrecision
 
 
 @dataclass(frozen=True)
@@ -137,12 +138,17 @@ class LowlightTrainer:
         clip_criterion: nn.Module,
         config: LowlightTrainerConfig,
         device: torch.device,
+        amp_enabled: bool = False,
+        amp_dtype: str = "bfloat16",
     ) -> None:
         self.model = model
         self.optimizer = optimizer
         self.clip_criterion = clip_criterion
         self.config = config
         self.device = device
+        self.precision = TrainingPrecision(
+            device=device, enabled=amp_enabled, dtype=amp_dtype
+        )
         self.sasw = SASWLoss().to(device)
         self.exposure = L_exp(config.light_patch, config.mean_val).to(device)
         self.color = L_color().to(device)
@@ -159,25 +165,27 @@ class LowlightTrainer:
         image1 = generate_subimages(input_image, mask1)
         image2 = gamma_correction(generate_subimages(input_image, mask2))
 
-        l1, r1, x1, i1 = self.model(image1, sem_feats=semantic_features)
-        _, r2, _, _ = self.model(image2, sem_feats=semantic_features)
-        _, _, _, full_output = self.model(
-            input_image, sem_feats=semantic_features
-        )
+        with self.precision.autocast():
+            l1, r1, x1, i1 = self.model(image1, sem_feats=semantic_features)
+            _, r2, _, _ = self.model(image2, sem_feats=semantic_features)
+            _, _, _, full_output = self.model(
+                input_image, sem_feats=semantic_features
+            )
         sub_r1 = generate_subimages(full_output, mask1)
         sub_r2 = generate_subimages(full_output, mask2)
 
         consistency = C_loss(r1, r2) + 0.5 * C_loss(r1 - r2, sub_r1 - sub_r2)
         reconstruction = R_loss(l1, r1, image1, x1)
         prior = P_loss(image1, x1)
-        sasw = self.sasw(x1, image1)
-        lowlight = (
-            self.config.loss_weights[0] * self.exposure(i1)
-            + self.config.loss_weights[1] * torch.mean(self.spatial(x1, i1))
-            + self.config.loss_weights[2] * self.tv(i1)
-            + self.config.loss_weights[3] * torch.mean(self.color(i1))
-        )
-        semantic, iqa = self.clip_criterion(input_image, full_output)
+        with self.precision.autocast():
+            sasw = self.sasw(x1, image1)
+            lowlight = (
+                self.config.loss_weights[0] * self.exposure(i1)
+                + self.config.loss_weights[1] * torch.mean(self.spatial(x1, i1))
+                + self.config.loss_weights[2] * self.tv(i1)
+                + self.config.loss_weights[3] * torch.mean(self.color(i1))
+            )
+            semantic, iqa = self.clip_criterion(input_image, full_output)
         total = (
             consistency
             + reconstruction
@@ -195,8 +203,8 @@ class LowlightTrainer:
                 f"semantic={semantic.item()} iqa={iqa.item()}"
             )
         self.optimizer.zero_grad(set_to_none=True)
-        total.backward()
-        self.optimizer.step()
+        self.precision.backward_step(total, self.optimizer)
+        self.precision.update()
         return {
             "total": total.detach().item(),
             "consistency": consistency.detach().item(),

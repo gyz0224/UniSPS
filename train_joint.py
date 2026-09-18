@@ -61,6 +61,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--device")
     parser.add_argument("--max-iterations", type=int)
     parser.add_argument("--output")
+    amp_group = parser.add_mutually_exclusive_group()
+    amp_group.add_argument(
+        "--amp", dest="amp", action="store_true", help="enable CUDA AMP"
+    )
+    amp_group.add_argument(
+        "--no-amp", dest="amp", action="store_false", help="disable AMP"
+    )
+    parser.set_defaults(amp=None)
+    parser.add_argument(
+        "--amp-dtype", choices=("bfloat16", "float16"), help="override AMP dtype"
+    )
     return parser
 
 
@@ -122,22 +133,24 @@ def _retain_step(
     optimizer,
     device: torch.device,
     weight: float,
+    precision,
 ) -> float:
     lowlight = batch[0].to(device, non_blocking=True)
-    with torch.no_grad():
-        semantics = model.extract_semantics(lowlight)
-        teacher_output = teacher(lowlight, sem_feats=semantics, task="lowlight")[-1]
     optimizer.zero_grad(set_to_none=True)
-    student_output = model(lowlight, sem_feats=semantics, task="lowlight")[-1]
-    retain = F.l1_loss(student_output, teacher_output)
-    weighted = weight * retain
+    with precision.autocast():
+        with torch.no_grad():
+            semantics = model.extract_semantics(lowlight)
+            teacher_output = teacher(lowlight, sem_feats=semantics, task="lowlight")[-1]
+        student_output = model(lowlight, sem_feats=semantics, task="lowlight")[-1]
+        retain = F.l1_loss(student_output, teacher_output)
+        weighted = weight * retain
     if not torch.isfinite(weighted):
         names = batch[1] if len(batch) > 1 else "unavailable"
         raise FloatingPointError(
             f"Non-finite low-light retain loss for inputs {names}: {retain.item()}"
         )
-    weighted.backward()
-    optimizer.step()
+    precision.backward_step(weighted, optimizer)
+    precision.update()
     return retain.detach().item()
 
 
@@ -174,6 +187,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if args.max_iterations <= 0:
             raise ValueError("--max-iterations must be positive")
         config["max_iterations"] = args.max_iterations
+    if args.amp is not None:
+        config["amp"] = args.amp
+    if args.amp_dtype is not None:
+        config["amp_dtype"] = args.amp_dtype
     layout = configure_experiment(args, config)
 
     device = resolve_device(args.device or config.get("device"))
@@ -220,6 +237,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             optimizers=stack["optimizers"],
             schedulers=stack["schedulers"],
             map_location=device,
+            precision=trainer.precision,
         )
         joint_iteration = int(checkpoint.get("iteration", 0))
         trainer.iteration = joint_iteration
@@ -258,6 +276,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 stack["optimizers"]["generator"],
                 device,
                 retain_weight,
+                trainer.precision,
             )
             stack["schedulers"]["generator"].step()
         retain /= lowlight_steps
@@ -325,6 +344,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 joint_iteration,
                 epoch,
                 config,
+                precision=trainer.precision,
             )
 
     save_training_checkpoint(
@@ -340,6 +360,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         joint_iteration,
         epoch,
         config,
+        precision=trainer.precision,
     )
     print(
         f"[train] Complete: iteration={joint_iteration}/{maximum} "

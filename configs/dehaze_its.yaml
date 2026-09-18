@@ -4,6 +4,10 @@ stage: 2
 seed: 10
 device: cuda:0
 
+# A100 default: set amp: false to return to full FP32.
+amp: true
+amp_dtype: bfloat16
+
 # Training data only. Never point these at SOTS/test GT.
 clean_flist: dataset/ITS/gt
 hazy_flist: dataset/ITS/hazy

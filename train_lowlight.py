@@ -57,6 +57,17 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="comma-separated epochs or ranges, e.g. 50,60-80",
     )
+    amp_group = parser.add_mutually_exclusive_group()
+    amp_group.add_argument(
+        "--amp", dest="amp", action="store_true", help="enable CUDA AMP"
+    )
+    amp_group.add_argument(
+        "--no-amp", dest="amp", action="store_false", help="disable AMP"
+    )
+    parser.set_defaults(amp=True)
+    parser.add_argument(
+        "--amp-dtype", choices=("bfloat16", "float16"), default="bfloat16"
+    )
     return parser
 
 
@@ -153,7 +164,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             w_iqa=args.w_iqa,
         ),
         device,
+        amp_enabled=args.amp,
+        amp_dtype=args.amp_dtype,
     )
+    print(f"===> Training precision: {trainer.precision.mode}")
 
     best = {"psnr": 0.0, "ssim": 0.0, "lpips": float("inf")}
     records = {

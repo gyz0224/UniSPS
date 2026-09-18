@@ -1,6 +1,10 @@
 stage: 4
 seed: 10
 device: cuda:0
+
+# A100 default: set amp: false to return to full FP32.
+amp: true
+amp_dtype: bfloat16
 max_iterations: 100000
 
 # Stage 4 task schedule. Set lowlight_steps_per_cycle=2 if retention degrades.

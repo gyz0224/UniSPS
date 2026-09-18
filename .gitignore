@@ -31,19 +31,26 @@ dist/
 /dataset/
 *.flist
 
-# Training, evaluation, and TensorBoard output
-/runs/*
-!/runs/pretrained_native_comparison.md
-/checkpoints/*/*.pth
+# Training, evaluation, visualization, and TensorBoard output
+/runs/
+/runsv1/
+/checkpoints/
 /results/
 /logs/
+/figs/
+/env_check.log
+/backups/
 events.out.tfevents*
 
 # Model weights
+/weights/
 *.pth
 *.pt
 *.ckpt
+*.safetensors
 *.onnx
+*.engine
+*.weights
 
 # Editors and operating systems
 .idea/

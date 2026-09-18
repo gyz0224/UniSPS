@@ -2,8 +2,16 @@
 """Validate the canonical D4+ real-outdoor image and sky-mask layout."""
 
 import argparse
+import sys
 from pathlib import Path
 from typing import Optional, Sequence
+
+# When this file is executed directly, Python places ``scripts/`` rather than the
+# repository root at the front of sys.path.  Add the root explicitly so the
+# local ``datasets`` package wins over any third-party package with that name.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from datasets.dehaze import validate_real_dataset_layout
 

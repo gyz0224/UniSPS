@@ -20,6 +20,7 @@ from loss.dehaze_loss import (
 )
 from net.dehaze import depth_from_transmission
 from net.rehaze import PhysicalHazeRenderer
+from training.precision import TrainingPrecision, normalize_amp_dtype
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,9 @@ class TrainerConfig:
     use_dcp_pseudo_depth: bool = False
     eps: float = 1e-6
 
+    amp: bool = False
+    amp_dtype: str = "bfloat16"
+
     def __post_init__(self) -> None:
         if not 0.0 < self.beta_min < self.beta_max:
             raise ValueError("Trainer beta range must satisfy 0 < min < max")
@@ -61,6 +65,8 @@ class TrainerConfig:
         ):
             if getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be positive")
+
+        normalize_amp_dtype(self.amp_dtype)
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, Any]) -> "TrainerConfig":
@@ -282,6 +288,12 @@ class DehazeTrainer:
         self.renderer = PhysicalHazeRenderer(
             config.transmission_min, config.transmission_max
         )
+        device = next(model.parameters()).device
+        self.precision = TrainingPrecision(
+            device=device,
+            enabled=config.amp,
+            dtype=config.amp_dtype,
+        )
         self.iteration = 0
 
     def set_physics(self, config: TrainerConfig, atmosphere_mode: Optional[str] = None) -> None:
@@ -355,20 +367,22 @@ class DehazeTrainer:
         set_requires_grad(self.d_clear, True)
         set_requires_grad(self.d_hazy, True)
         optimizer.zero_grad(set_to_none=True)
-        with torch.no_grad():
+        with self.precision.autocast(), torch.no_grad():
             outputs = self._cycles(batch)
 
         clean_mask = batch.get("clean_mask")
         hazy_mask = batch.get("hazy_mask")
         real_clear = _masked(batch["clean"], clean_mask)
         fake_clear = _masked(outputs["clean_prediction"], hazy_mask)
-        d_clear_loss = lsgan_discriminator_loss(
-            self.d_clear(real_clear), self.d_clear(fake_clear.detach())
-        )
-        d_hazy_loss = lsgan_discriminator_loss(
-            self.d_hazy(batch["hazy"]), self.d_hazy(outputs["haze_prediction"].detach())
-        )
-        total = d_clear_loss + d_hazy_loss
+        with self.precision.autocast():
+            d_clear_loss = lsgan_discriminator_loss(
+                self.d_clear(real_clear), self.d_clear(fake_clear.detach())
+            )
+            d_hazy_loss = lsgan_discriminator_loss(
+                self.d_hazy(batch["hazy"]),
+                self.d_hazy(outputs["haze_prediction"].detach()),
+            )
+            total = d_clear_loss + d_hazy_loss
         _finite_diagnostics(
             "discriminator phase",
             {"D_clear": d_clear_loss, "D_hazy": d_hazy_loss, "total": total},
@@ -379,8 +393,7 @@ class DehazeTrainer:
                 "depth": outputs["hazy_depth"],
             },
         )
-        total.backward()
-        optimizer.step()
+        self.precision.backward_step(total, optimizer)
         return {"D_clear": d_clear_loss.detach(), "D_hazy": d_hazy_loss.detach()}
 
     def _generator_phase(
@@ -389,7 +402,8 @@ class DehazeTrainer:
         optimizer = self.optimizers["generator"]
         optimizer.zero_grad(set_to_none=True)
         with temporarily_frozen(self.depth_net, self.d_clear, self.d_hazy):
-            outputs = self._cycles(batch)
+            with self.precision.autocast():
+                outputs = self._cycles(batch)
             total_cycle, clean_cycle, hazy_cycle = cycle_loss(
                 batch["clean"],
                 outputs["clean_cycle"],
@@ -397,12 +411,13 @@ class DehazeTrainer:
                 outputs["hazy_cycle"],
                 clean_mask=batch.get("clean_mask"),
             )
-            gan = lsgan_generator_loss(
-                self.d_clear(
-                    _masked(outputs["clean_prediction"], batch.get("hazy_mask"))
-                ),
-                self.d_hazy(outputs["haze_prediction"]),
-            )
+            with self.precision.autocast():
+                gan = lsgan_generator_loss(
+                    self.d_clear(
+                        _masked(outputs["clean_prediction"], batch.get("hazy_mask"))
+                    ),
+                    self.d_hazy(outputs["haze_prediction"]),
+                )
             scatter = scattering_loss(
                 outputs["predicted_sample_beta"],
                 outputs["sampled_beta"],
@@ -412,19 +427,21 @@ class DehazeTrainer:
             )
             contrast = total_cycle.new_zeros(())
             if self.contrast_loss is not None:
-                contrast = self.contrast_loss(
-                    outputs["clean_prediction"],
-                    outputs["haze_prediction"],
-                    batch["clean_ref"],
-                    batch["hazy_ref"],
-                )
+                with self.precision.autocast():
+                    contrast = self.contrast_loss(
+                        outputs["clean_prediction"],
+                        outputs["haze_prediction"],
+                        batch["clean_ref"],
+                        batch["hazy_ref"],
+                    )
             semantic = total_cycle.new_zeros(())
             if self.semantic_encoder is not None:
-                semantic = semantic_consistency_loss(
-                    self.semantic_encoder,
-                    batch["hazy"],
-                    outputs["clean_prediction"],
-                )
+                with self.precision.autocast():
+                    semantic = semantic_consistency_loss(
+                        self.semantic_encoder,
+                        batch["hazy"],
+                        outputs["clean_prediction"],
+                    )
             total, weighted = generator_total_loss(
                 total_cycle,
                 gan,
@@ -451,16 +468,18 @@ class DehazeTrainer:
                     "depth": outputs["hazy_depth"],
                 },
             )
-            total.backward()
-            if self.config.grad_clip > 0:
-                parameters = [
-                    parameter
-                    for group in optimizer.param_groups
-                    for parameter in group["params"]
-                    if parameter.grad is not None
-                ]
-                nn.utils.clip_grad_norm_(parameters, self.config.grad_clip)
-            optimizer.step()
+            parameters = [
+                parameter
+                for group in optimizer.param_groups
+                for parameter in group["params"]
+                if parameter.requires_grad
+            ]
+            self.precision.backward_step(
+                total,
+                optimizer,
+                parameters=parameters,
+                max_grad_norm=self.config.grad_clip,
+            )
 
         metrics = {
             "cycle_clean": clean_cycle.detach(),
@@ -492,7 +511,8 @@ class DehazeTrainer:
         else:
             pseudo_depth = outputs["hazy_depth"].detach()
 
-        predicted_depth = self.depth_net(outputs["clean_prediction"].detach())
+        with self.precision.autocast():
+            predicted_depth = self.depth_net(outputs["clean_prediction"].detach())
         loss = depth_pseudo_loss(
             predicted_depth,
             pseudo_depth,
@@ -511,8 +531,7 @@ class DehazeTrainer:
                 "predicted_depth": predicted_depth,
             },
         )
-        loss.backward()
-        optimizer.step()  # Exactly one DepthNet step per iteration.
+        self.precision.backward_step(loss, optimizer)
         return loss.detach()
 
     @staticmethod
@@ -549,6 +568,7 @@ class DehazeTrainer:
         if progress_callback is not None:
             progress_callback("phase 3/3: updating depth network")
         depth_loss = self._depth_phase(batch, outputs)
+        self.precision.update()
         self.iteration += 1
 
         tensors: Dict[str, torch.Tensor] = {
@@ -614,6 +634,7 @@ def save_training_checkpoint(
     iteration: int,
     epoch: int,
     config: Mapping[str, Any],
+    precision: Optional[TrainingPrecision] = None,
 ) -> None:
     """Save complete train state without duplicating frozen CLIP weights."""
     target = Path(path)
@@ -633,6 +654,7 @@ def save_training_checkpoint(
             "iteration": iteration,
             "epoch": epoch,
             "config": dict(config),
+            "amp_scaler": precision.state_dict() if precision is not None else {},
         },
         target,
     )
@@ -648,6 +670,7 @@ def load_training_checkpoint(
     optimizers: Optional[Mapping[str, torch.optim.Optimizer]] = None,
     schedulers: Optional[Mapping[str, Any]] = None,
     map_location: Any = "cpu",
+    precision: Optional[TrainingPrecision] = None,
 ) -> Dict[str, Any]:
     """Load new full checkpoints or legacy SPS state dicts with diagnostics."""
     checkpoint = torch.load(path, map_location=map_location)
@@ -672,4 +695,6 @@ def load_training_checkpoint(
         for name, scheduler in (schedulers or {}).items():
             if name in checkpoint.get("schedulers", {}):
                 scheduler.load_state_dict(checkpoint["schedulers"][name])
+        if precision is not None and checkpoint.get("amp_scaler"):
+            precision.load_state_dict(checkpoint["amp_scaler"])
     return checkpoint if isinstance(checkpoint, dict) else {"model": checkpoint}

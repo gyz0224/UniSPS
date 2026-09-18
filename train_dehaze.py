@@ -48,6 +48,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="print metrics every N iterations (0 disables periodic metrics)",
     )
     parser.add_argument("--output", help="override checkpoint directory")
+    amp_group = parser.add_mutually_exclusive_group()
+    amp_group.add_argument(
+        "--amp", dest="amp", action="store_true", help="enable CUDA AMP"
+    )
+    amp_group.add_argument(
+        "--no-amp", dest="amp", action="store_false", help="disable AMP"
+    )
+    parser.set_defaults(amp=None)
+    parser.add_argument(
+        "--amp-dtype", choices=("bfloat16", "float16"), help="override AMP dtype"
+    )
     return parser
 
 
@@ -101,6 +112,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if args.log_interval < 0:
             raise ValueError("--log-interval must be non-negative")
         config["log_interval"] = args.log_interval
+    if args.amp is not None:
+        config["amp"] = args.amp
+    if args.amp_dtype is not None:
+        config["amp_dtype"] = args.amp_dtype
     layout = configure_experiment(args, config)
 
     device = resolve_device(args.device or config.get("device"))
@@ -135,6 +150,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             optimizers=stack["optimizers"],
             schedulers=stack["schedulers"],
             map_location=device,
+            precision=trainer.precision,
         )
         trainer.iteration = int(checkpoint.get("iteration", 0))
         epoch = int(checkpoint.get("epoch", 0))
@@ -211,6 +227,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 trainer.iteration,
                 epoch,
                 config,
+                precision=trainer.precision,
             )
             print(f"[checkpoint] Saved {checkpoint_path}", flush=True)
 
@@ -229,6 +246,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         trainer.iteration,
         epoch,
         config,
+        precision=trainer.precision,
     )
     print(
         f"[train] Complete: iteration={trainer.iteration}/{maximum} "

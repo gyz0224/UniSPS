@@ -2,6 +2,10 @@ stage: 3
 seed: 10
 device: cuda:0
 
+# A100 default: set amp: false to return to full FP32.
+amp: true
+amp_dtype: bfloat16
+
 # D4+ RESIDE-unpaired archive: 3,577 clean and 2,902 hazy images.
 # Run `python scripts/validate_real_dataset.py` before Stage 3.
 clean_flist: dataset/real/clear

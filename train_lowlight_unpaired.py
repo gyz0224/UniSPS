@@ -53,6 +53,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--w_sem", type=float, default=0.1)
     parser.add_argument("--w_iqa", type=float, default=0.01)
     parser.add_argument("--weights_dir", default="weights/metrics_weights")
+    amp_group = parser.add_mutually_exclusive_group()
+    amp_group.add_argument(
+        "--amp", dest="amp", action="store_true", help="enable CUDA AMP"
+    )
+    amp_group.add_argument(
+        "--no-amp", dest="amp", action="store_false", help="disable AMP"
+    )
+    parser.set_defaults(amp=True)
+    parser.add_argument(
+        "--amp-dtype", choices=("bfloat16", "float16"), default="bfloat16"
+    )
     return parser
 
 
@@ -167,7 +178,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             w_iqa=args.w_iqa,
         ),
         device,
+        amp_enabled=args.amp,
+        amp_dtype=args.amp_dtype,
     )
+    print(f"===> Training precision: {trainer.precision.mode}")
     metrics = build_no_reference_metrics(Path(args.weights_dir), device)
     if args.start_iter > 1:
         resume = output / f"epoch_{args.start_iter - 1}.pth"

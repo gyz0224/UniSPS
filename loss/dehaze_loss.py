@@ -59,7 +59,9 @@ def scattering_loss(
 ) -> torch.Tensor:
     """Normalized beta pseudo-supervision loss."""
     denominator = max(float(beta_max - beta_min), eps)
-    return F.mse_loss(predicted_beta, target_beta.detach()) / denominator
+    return F.mse_loss(
+        predicted_beta.float(), target_beta.detach().float()
+    ) / denominator
 
 
 def depth_pseudo_loss(
@@ -71,7 +73,9 @@ def depth_pseudo_loss(
 ) -> torch.Tensor:
     """Normalized training-only DepthNet pseudo-supervision loss."""
     denominator = max(float(depth_max - depth_min), eps)
-    return F.l1_loss(predicted_depth, pseudo_depth.detach()) / denominator
+    return F.l1_loss(
+        predicted_depth.float(), pseudo_depth.detach().float()
+    ) / denominator
 
 
 def semantic_consistency_loss(

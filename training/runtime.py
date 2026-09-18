@@ -191,6 +191,7 @@ def build_training_stack(
         contrast_loss=contrast_loss,
         semantic_encoder=semantic_encoder,
     )
+    print(f"[setup] Training precision: {trainer.precision.mode}.", flush=True)
     max_iterations = int(values.get("max_iterations", 150000))
     lowlight_steps = int(values.get("lowlight_steps_per_cycle", 1)) if include_lowlight else 0
     dehaze_steps = int(values.get("dehaze_steps_per_cycle", 1))
@@ -212,6 +213,7 @@ def build_training_stack(
         "optimizers": optimizers,
         "schedulers": schedulers,
         "trainer": trainer,
+        "precision": trainer.precision,
         "trainer_config": trainer_config,
         "stage": stage,
     }
